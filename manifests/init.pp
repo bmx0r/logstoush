@@ -11,7 +11,7 @@ node my-apache{
         source   => 'https://github.com/elasticsearch/kibana.git',
         owner    => 'apache',
         group    =>  'apache',
-        require  => Package['git'],
+        require  => [Package['git'],Class['apache']],
     }
     class { 'apache':
         default_vhost        => false,
@@ -22,6 +22,7 @@ node my-apache{
         docroot_owner => 'apache',
         docroot_group => 'apache',
     }
+    Package['git'] -> Class['apache'] 
 }
 node my-es{
 # elasticSearch
