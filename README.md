@@ -6,15 +6,15 @@ tested on :
 - Vagrant version 1.2.2,1.6.3
 - VirtualBox 4.2.12,4.3.14
 
-git clone https://github.com/bmx0r/
+git clone https://github.com/bmx0r/logstoush
 
-#update the vagrant file to use an IP that is not in conflict with your network
-cd pytdev
-git submodule init
-git submodule update
-git submodule foreach git submodule init
-git submodule foreach git submodule update
-vagrant up
+update the vagrant file to use an IP that is not in conflict with your network
+`cd logstoush`
+`git submodule init`
+`git submodule update`
+`git submodule foreach git submodule init`
+`git submodule foreach git submodule update`
+`vagrant up`
 
 use your favorite browse to check :
 
