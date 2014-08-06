@@ -18,7 +18,7 @@ Vagrant.configure("2") do |config|
         puppet.manifests_path = "./manifests"
         puppet.manifest_file = "init.pp"
         puppet.facter = { "fqdn" => "example.com" }
-        puppet.options = ["--fileserverconfig=/vagrant/fileserver.conf", "--verbose", "--debug","--pluginsync" ]
+        puppet.options = ["--fileserverconfig=/vagrant/fileserver.conf", "--verbose","--pluginsync" ]
     end
 
     config.vm.define "web" do |web|

@@ -19,3 +19,6 @@
 [submodule "modules/python"]
 	path = modules/python
 	url = https://github.com/stankevich/puppet-python
+[submodule "modules/logstash"]
+	path = modules/logstash
+	url = https://github.com/elasticsearch/puppet-logstash.git
