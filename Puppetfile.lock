@@ -1,0 +1,32 @@
+FORGE
+  remote: https://forgeapi.puppetlabs.com
+  specs:
+    ceritsc-yum (0.9.6)
+      puppetlabs-stdlib (>= 4.0.0)
+    elasticsearch-elasticsearch (0.9.9)
+      ceritsc-yum (< 1.0.0, >= 0.9.6)
+      puppetlabs-apt (< 2.0.0, >= 1.4.0)
+      puppetlabs-stdlib (< 5.0.0, >= 3.2.0)
+    elasticsearch-logstash (0.5.1)
+      ispavailability-file_concat (>= 0.1.0)
+      puppetlabs-stdlib (>= 3.2.0)
+    ispavailability-file_concat (0.3.0)
+    puppetlabs-apt (1.8.0)
+      puppetlabs-stdlib (>= 2.2.1)
+    puppetlabs-concat (1.2.4)
+      puppetlabs-stdlib (< 5.0.0, >= 3.2.0)
+    puppetlabs-java (1.4.2)
+      puppetlabs-stdlib (< 5.0.0, >= 2.4.0)
+    puppetlabs-stdlib (4.9.0)
+    puppetlabs-vcsrepo (1.3.1)
+    stahnma-epel (1.2.0)
+
+DEPENDENCIES
+  elasticsearch-elasticsearch (>= 0)
+  elasticsearch-logstash (>= 0)
+  puppetlabs-concat (>= 0)
+  puppetlabs-java (>= 0)
+  puppetlabs-stdlib (>= 0)
+  puppetlabs-vcsrepo (>= 0)
+  stahnma-epel (>= 0)
+
