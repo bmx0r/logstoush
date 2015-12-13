@@ -19,28 +19,16 @@ java_pkg="java-1.8.0-openjdk"
 def uname():
     run('uname -a')
 
-
-def _is_pkg_installed(pkg_name):
-    with settings(warn_only=True):
-        rc = sudo('rpm -qa | grep %s' % pkg_name)
-    if rc.failed:
-        return False
-    else:
-        print "pkg %s already installed" % pkg_name
-        return True
-
 @task
 def install_es_package(with_repo=True, with_java=True):
-    if not _is_pkg_installed('elasticsearch'):
-        if with_repo:
-            sudo('rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch')
-            upl = put(local_path='ES/repofile/elasticsearch.repo',remote_path='/etc/yum.repos.d/',use_sudo=True)
-            if upl.failed:
-                exit(1)
-            sudo('yum repolist')
-        sudo('yum install elasticsearch -y')
-    if not _is_pkg_installed(java_pkg):
-        sudo('yum install -y %s' % java_pkg)
+    if with_repo:
+        sudo('rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch')
+        upl = put(local_path='ES/repofile/elasticsearch.repo',remote_path='/etc/yum.repos.d/',use_sudo=True)
+        if upl.failed:
+            print "Upload failed"
+            exit(1)
+    require.rpm.package('elasticsearch')
+    require.rpm.package(java_pkg)
 
 @task
 def config_es():
