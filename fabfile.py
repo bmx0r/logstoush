@@ -1,5 +1,6 @@
 from fabric.api import *
 from fabtools.vagrant import vagrant
+from fabtools import require
 
 env.roledefs.update({
     'kibana_node': ['www1', 'www2'],
@@ -61,24 +62,16 @@ def setup_ES():
     enable_es()
 
 
+########################################
+#LOGSTASH
 
 @task
-def deploy_vimconfig (force=False):
-    """
-    git clone bmx0r/vimconfig from repo in github to $HOME/.vim.
-    """
-    if force :
-        print "Forced Mode ON : get rid of old .vim directory"
-        run('rm -rf $HOME/.vim')
-        run('rm $HOME/.vimrc')
-    print('=== CLONE FROM GITHUB ===')
-    run("git clone %s %s" % (env.GIT_REPO_URL, ".vim"))
-    run("ln -s $HOME/.vim/.vimrc $HOME/.vimrc")
-    with cd('$HOME/.vim'):
-        run('git submodule init')
-        run('git submodule update')
-        run('git submodule foreach git submodule init')
-        run('git submodule foreach git submodule update')
-    sudo('pip install pyflakes pep8 flake8 mccabe')
-
+def install_logstash_pkg(with_repo=True, with_java=True):
+    if with_repo:
+        sudo('rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch')
+        upl = put(local_path='LS/repofile/logstash.repo',remote_path='/etc/yum.repos.d/',use_sudo=True)
+        if upl.failed:
+                exit(1)
+    require.rpm.package('logstash')
+    require.rpm.package(java_pkg)
 

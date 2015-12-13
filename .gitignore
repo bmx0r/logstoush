@@ -3,4 +3,5 @@ modules/
 .kitchen/
 .librarian/
 .vagrant/
-.pyc
+*.pyc
+fabfile.pyc
