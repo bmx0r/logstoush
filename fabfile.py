@@ -1,7 +1,9 @@
 from fabric.api import *
+from fabric.contrib.files import *
 from fabtools.vagrant import vagrant
 from fabtools import require
-
+from fabtools import service
+import fabtools
 env.roledefs.update({
     'kibana_node': ['www1', 'www2'],
     'elasticsearch_nodes': ['default'],
@@ -62,4 +64,45 @@ def install_logstash_pkg(with_repo=True, with_java=True):
                 exit(1)
     require.rpm.package('logstash')
     require.rpm.package(java_pkg)
+
+@task
+def config_ls_instance(name,typels):
+    """To config es instance : 
+       - Deploy an init script
+       - Deploy a sysconfig file
+       - Deploy rules (the logstash conf file)
+    """
+    create_ls_instance(name)
+    pushconfig_ls(name,typels)
+    if not fabtools.service.is_running("logstash-%s" % name):
+        fabtools.service.start("logstash-%s" % name)
+    else:
+        fabtools.service.restart("logstash-%s" % name)
+
+def pushconfig_ls(name,typels):
+    """
+       TODO
+       typels will define default input/output/filter you can create your own in the template dir
+    """
+    context = {
+                'name' : name,
+                'typels' : typels,
+              }
+    upload_template("LS/templates/%(typels)s-input.tpl" % context,"/etc/logstash-%(name)s/conf.d/10-input.conf" % context, context, use_sudo=True, mode='0644' )
+    upload_template("LS/templates/%(typels)s-filter.tpl" % context,"/etc/logstash-%(name)s/conf.d/20-filter.conf" % context, context, use_sudo=True, mode='0644' )
+    upload_template("LS/templates/%(typels)s-output.tpl" % context,"/etc/logstash-%(name)s/conf.d/30-output.conf" % context, context, use_sudo=True, mode='0644' )
+    sudo('rm -f /etc/logstash-%(name)s/conf.d/*.bak' % context)
+
+
+def create_ls_instance(name,user="logstash"):
+    #TODO add variable in context/template
+    context = { 'name' : name,
+              }
+    upload_template("LS/templates/logstash-init.tpl","/etc/init.d/logstash-%(name)s" % context, context, use_sudo=True, mode='0755' )
+    upload_template("LS/templates/logstash-sysconfig.tpl","/etc/sysconfig/logstash-%(name)s" % context, context, use_sudo=True)
+    #create /etc/logstash-indexer/conf.d
+    require.directory('/etc/logstash-%(name)s/conf.d/' % context, owner=user, use_sudo=True)
+    require.directory('/etc/logstash-%(name)s/pattern.d/' % context, owner=user, use_sudo=True)
+    sudo("chkconfig --add logstash-%(name)s" % context)
+    sudo("chkconfig logstash-%(name)s on" % context)
 

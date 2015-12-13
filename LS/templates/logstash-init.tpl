@@ -23,7 +23,7 @@ if [ `id -u` -ne 0 ]; then
    exit 1
 fi
 
-name=logstash
+name=logstash-%(name)s
 pidfile="/var/run/$name.pid"
 
 LS_USER=logstash
@@ -32,7 +32,7 @@ LS_HOME=/var/lib/logstash
 LS_HEAP_SIZE="500m"
 LS_LOG_DIR=/var/log/logstash
 LS_LOG_FILE="${LS_LOG_DIR}/$name.log"
-LS_CONF_DIR=/etc/logstash/conf.d
+LS_CONF_DIR=/etc/${name}/conf.d
 LS_OPEN_FILES=16384
 LS_NICE=19
 LS_OPTS=""
