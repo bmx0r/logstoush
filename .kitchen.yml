@@ -7,6 +7,8 @@ provisioner:
   manifests_path: manifests
   modules_path: modules
   hiera_data_path: hieradata
+  require_chef_for_busser: false
+  require_ruby_for_busser: true
 
 platforms:
   - name: centos-6.5
