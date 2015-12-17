@@ -4,6 +4,16 @@ from fabtools.vagrant import vagrant
 from fabtools import require
 from fabtools import service
 import fabtools
+
+from fabtools.files import is_file
+from fabtools.require import directory as require_directory
+from fabtools.require import file as require_file
+from fabtools.require import user as require_user
+from fabtools.require.rpm import packages as require_rpm_packages
+from fabtools.system import distrib_family
+from fabtools.utils import run_as_root
+
+
 env.roledefs.update({
     'kibana_node': ['www1', 'www2'],
     'elasticsearch_nodes': ['default'],
@@ -14,7 +24,6 @@ env.roledefs.update({
 
 
 
-env.GIT_REPO_URL="git://github.com/bmx0r/vimconfig.git"
 java_pkg="java-1.8.0-openjdk"
 
 @task
@@ -74,6 +83,7 @@ def config_ls_instance(name,typels):
     """
     create_ls_instance(name)
     pushconfig_ls(name,typels)
+    sudo("/etc/init.d/logstash-%s configtest" % name)
     if not fabtools.service.is_running("logstash-%s" % name):
         fabtools.service.start("logstash-%s" % name)
     else:
@@ -88,9 +98,9 @@ def pushconfig_ls(name,typels):
                 'name' : name,
                 'typels' : typels,
               }
-    upload_template("LS/templates/%(typels)s-input.tpl" % context,"/etc/logstash-%(name)s/conf.d/10-input.conf" % context, context, use_sudo=True, mode='0644' )
-    upload_template("LS/templates/%(typels)s-filter.tpl" % context,"/etc/logstash-%(name)s/conf.d/20-filter.conf" % context, context, use_sudo=True, mode='0644' )
-    upload_template("LS/templates/%(typels)s-output.tpl" % context,"/etc/logstash-%(name)s/conf.d/30-output.conf" % context, context, use_sudo=True, mode='0644' )
+    upload_template("LS/templates/%(typels)s-input.tpl" % context,"/etc/logstash-%(name)s/conf.d/10-input.conf" % context, context, use_sudo=True, mode='0644', use_jinja=True )
+    upload_template("LS/templates/%(typels)s-filter.tpl" % context,"/etc/logstash-%(name)s/conf.d/20-filter.conf" % context, context, use_sudo=True, mode='0644',use_jinja=True )
+    upload_template("LS/templates/%(typels)s-output.tpl" % context,"/etc/logstash-%(name)s/conf.d/30-output.conf" % context, context, use_sudo=True, mode='0644', use_jinja=True )
     sudo('rm -f /etc/logstash-%(name)s/conf.d/*.bak' % context)
 
 
@@ -105,4 +115,31 @@ def create_ls_instance(name,user="logstash"):
     require.directory('/etc/logstash-%(name)s/pattern.d/' % context, owner=user, use_sudo=True)
     sudo("chkconfig --add logstash-%(name)s" % context)
     sudo("chkconfig logstash-%(name)s on" % context)
+
+################################
+# REDIS
+@task
+def deploy_redis(version="3.0.5"):
+    require_user('redis', home='/var/lib/redis', system=True)
+    require_directory('/var/lib/redis', owner='redis', use_sudo=True)
+    dest_dir = '/opt/redis-%(version)s' % locals()
+    require_directory(dest_dir, use_sudo=True, owner='redis')
+    if not is_file('%(dest_dir)s/redis-server' % locals()):
+        tarball = 'redis-%(version)s.tar.gz' % locals()
+        require_file(tarball, url="http://download.redis.io/releases/%s"% tarball)
+        run('tar xzf %(tarball)s' % locals())
+        with cd('redis-%(version)s' % locals()):
+                run('make')
+                sudo('make install PREFIX=%s' % dest_dir)
+                sudo('chown redis: %(dest_dir)s/*' % locals())
+        sudo('rm -rf redis-%(version)s %(tarball)s' % locals())
+
+@task
+def deploy_redis_instance(port=6379):
+    upload_template("REDIS/%(port)s.conf" % locals(),"/etc/redis/%(port)s.conf" % locals(), locals() ,use_sudo=True,mode='644')
+    upload_template("REDIS/redis_%(port)s" % locals(),"/etc/init.d/redis_%(port)s" % locals(), locals(),use_sudo=True,mode='755')
+    sudo('chkconfig --add redis_%(port)s' % locals())
+    sudo('chkconfig redis_%(port)s on' % locals())
+    sudo('service redis_%(port)s start' % locals())
+
 
