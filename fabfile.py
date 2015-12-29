@@ -142,4 +142,15 @@ def deploy_redis_instance(port=6379):
     sudo('chkconfig redis_%(port)s on' % locals())
     sudo('service redis_%(port)s start' % locals())
 
+#######################################
+# Kibana
 
+@task
+def deploy_kibana():
+    """
+       - Download if neccessary
+       - untar in /opt
+       - config to use ES
+       - create start/stop
+    
+    """

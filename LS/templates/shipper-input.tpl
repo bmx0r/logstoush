@@ -4,8 +4,12 @@ input {
     type => "syslog-local"
   }
 
-  syslog {
-    type => "syslog"
-    port => "1514"
+  tcp {
+    port => 1514
+    type => syslog
+  }
+  udp {
+    port => 1514
+    type => syslog
   }
 }
