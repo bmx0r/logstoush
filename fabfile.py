@@ -15,11 +15,18 @@ from fabtools.utils import run_as_root
 
 
 env.roledefs.update({
-    'kibana_node': ['www1', 'www2'],
+    'kibana_nodes': ['www1', 'www2'],
     'elasticsearch_nodes': ['default'],
-    'logstash_shipper_node': ['lgss'],
-    'logstash_indexer_node': ['lgsi'],
-    'redis_node': ['redis1'],
+    'logstash_shipper_nodes': ['lgss'],
+    'logstash_indexer_nodes': ['lgsi'],
+    'redis_nodes': ['redis1'],
+})
+env.roledefs.update({
+    'kibana_nodes': ['vagrant'],
+    'elasticsearch_nodes': ['vagrant'],
+    'logstash_shipper_nodes': ['vagrant'],
+    'logstash_indexer_nodes': ['vagrant'],
+    'redis_nodes': ['vagrant'],
 })
 
 
@@ -56,6 +63,7 @@ def enable_es():
 @roles('elasticsearch_nodes')
 @task
 def setup_ES():
+    """This task install/config/enable ES on all nodes define in role elasticsearch_nodes"""
     install_es_package()
     config_es()
     enable_es()
@@ -63,6 +71,26 @@ def setup_ES():
 
 ########################################
 #LOGSTASH
+
+@task
+def setup_all_LS_instance():
+    """Deploy 2 instance of LS on each host with role logstash_shipper_node& logstash_indexer_node(shipper + indexer)"""
+    setup_LS_shipper()
+    setup_LS_indexer()
+
+@roles('logstash_shipper_nodes')
+@task
+def setup_LS_shipper():
+    """This task deploy a logstash_shipper instance on role logstash_shipper_node"""
+    install_logstash_pkg()
+    config_ls_instance("shipper","shipper")
+
+@roles('logstash_indexer_nodes')
+@task
+def setup_LS_indexer():
+    """This task deploy a logstash_indexer instance on role logstash_indexer_node"""
+    install_logstash_pkg()
+    config_ls_instance("indexer","indexer")
 
 @task
 def install_logstash_pkg(with_repo=True, with_java=True):
@@ -80,6 +108,7 @@ def config_ls_instance(name,typels):
        - Deploy an init script
        - Deploy a sysconfig file
        - Deploy rules (the logstash conf file)
+       - Restart service if needed
     """
     create_ls_instance(name)
     pushconfig_ls(name,typels)
@@ -118,35 +147,56 @@ def create_ls_instance(name,user="logstash"):
 
 ################################
 # REDIS
+@roles("redis_nodes")
 @task
-def deploy_redis(version="3.0.5"):
+def setup_redis():
+    """Install + setup startup of one redis instance"""
+    install_redis()
+    deploy_redis_instance()
+
+@task
+def install_redis(version="3.0.5",url="http://download.redis.io/releases/"):
+    """Downloads source + build + install Redis 3.0.5"""
     require_user('redis', home='/var/lib/redis', system=True)
+    require.rpm.package('gcc')
+    require.rpm.package('make')
     require_directory('/var/lib/redis', owner='redis', use_sudo=True)
     dest_dir = '/opt/redis-%(version)s' % locals()
+    data_dir = '/data/redis/'
+    conf_dir = '/etc/redis/'
     require_directory(dest_dir, use_sudo=True, owner='redis')
+    require_directory(data_dir, use_sudo=True, owner='redis')
+    require_directory(conf_dir, use_sudo=True, owner='redis')
     if not is_file('%(dest_dir)s/redis-server' % locals()):
         tarball = 'redis-%(version)s.tar.gz' % locals()
-        require_file(tarball, url="http://download.redis.io/releases/%s"% tarball)
+        require_file(tarball, url=url+tarball)
         run('tar xzf %(tarball)s' % locals())
         with cd('redis-%(version)s' % locals()):
                 run('make')
-                sudo('make install PREFIX=%s' % dest_dir)
+                sudo('make install PREFIX=%(dest_dir)s' % locals())
                 sudo('chown redis: %(dest_dir)s/*' % locals())
         sudo('rm -rf redis-%(version)s %(tarball)s' % locals())
 
 @task
 def deploy_redis_instance(port=6379):
+    """create a startupscript and a config + start or restart of the instance"""
     upload_template("REDIS/%(port)s.conf" % locals(),"/etc/redis/%(port)s.conf" % locals(), locals() ,use_sudo=True,mode='644')
     upload_template("REDIS/redis_%(port)s" % locals(),"/etc/init.d/redis_%(port)s" % locals(), locals(),use_sudo=True,mode='755')
+    require_directory('/data/redis/%(port)s' % locals(), use_sudo=True, owner='redis')
     sudo('chkconfig --add redis_%(port)s' % locals())
     sudo('chkconfig redis_%(port)s on' % locals())
-    sudo('service redis_%(port)s start' % locals())
+    if not fabtools.service.is_running("redis_%(port)s" % locals()):
+        fabtools.service.start("redis_%(port)s" % locals())
+    else:
+        fabtools.service.restart("redis_%(port)s" % locals())
+
+
 
 #######################################
 # Kibana
-
+@roles('kibana_nodes')
 @task
-def deploy_kibana():
+def deploy_kibana(version="4.3.1", dest_dir="/opt",url="https://download.elastic.co/kibana/kibana/"):
     """
        - Download if neccessary
        - untar in /opt
@@ -154,3 +204,27 @@ def deploy_kibana():
        - create start/stop
     
     """
+    if not is_file('%(dest_dir)s/kibana-server' % locals()):
+        tarball = 'kibana-%(version)s-linux-x64.tar.gz' % locals()
+        require_file(tarball, url=url+tarball)
+        sudo('tar xzf %(tarball)s' % locals())
+        sudo('mv kibana-%(version)s-linux-x64 %(dest_dir)s/' % locals())
+        append('%(dest_dir)s/kibana-%(version)s-linux-x64/config/kibana.yml' % locals(), 'elasticsearch.url: "http://localhost:9200"', use_sudo=True)
+        sudo('rm -rf kibana-%(version)s-linux-x64.tar.gz' % locals())
+        sudo('%(dest_dir)s/kibana-%(version)s-linux-x64/bin/kibana &' % locals())
+
+
+#########################################
+#Full ELK stack
+@task
+def setup_full_ELK():
+    """
+    Setup a full elk stack according to theroles define at the top
+    Be carreful to adapt the template if running on multiple host (ie logstash input for indexer & output for shipper)
+    must point to the redis instance 
+    """
+    setup_redis()
+    setup_ES()
+    setup_all_LS_instance()
+    deploy_kibana()
+
